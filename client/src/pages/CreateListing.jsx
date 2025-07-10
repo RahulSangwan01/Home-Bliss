@@ -1,9 +1,13 @@
-  import "../styles/CreateListing.scss";
+import "../styles/CreateListing.scss";
 import Navbar from "../components/Navbar";
-import { categories, types } from "../data";
+import { categories, types, facilities } from "../data";
+
 import { RemoveCircleOutline, AddCircleOutline } from "@mui/icons-material";
 import variables from "../styles/variables.scss";
+import { DragDropContext, Draggable, Droppable } from "react-beautiful-dnd";
+import { IoIosImages } from "react-icons/io";
 import { useState } from "react";
+import { BiTrash } from "react-icons/bi";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
@@ -25,9 +29,87 @@ const CreateListing = () => {
   const [bedCount, setBedCount] = useState(1);
   const [bathroomCount, setBathroomCount] = useState(1);
 
+  const [amenities, setAmenities] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [formDescription, setFormDescription] = useState({
+    title: "",
+    description: "",
+    highlight: "",
+    highlightDesc: "",
+    price: 0,
+  });
+
+  const creatorId = useSelector((state) => state.user._id);
+  const navigate = useNavigate();
+
   const handleChangeLocation = (e) => {
     const { name, value } = e.target;
     setFormLocation({ ...formLocation, [name]: value });
+  };
+
+  const handleSelectAmenities = (facility) => {
+    if (amenities.includes(facility)) {
+      setAmenities((prev) => prev.filter((item) => item !== facility));
+    } else {
+      setAmenities((prev) => [...prev, facility]);
+    }
+  };
+
+  const handleUploadPhotos = (e) => {
+    const newPhotos = e.target.files;
+    setPhotos((prevPhotos) => [...prevPhotos, ...newPhotos]);
+  };
+
+  const handleDragPhoto = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(photos);
+    const [moved] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, moved);
+    setPhotos(items);
+  };
+
+  const handleRemovePhoto = (index) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleChangeDescription = (e) => {
+    const { name, value } = e.target;
+    setFormDescription({ ...formDescription, [name]: value });
+  };
+
+  const handlePost = async (e) => {
+    e.preventDefault();
+    try {
+      const listingForm = new FormData();
+      listingForm.append("creator", creatorId);
+      listingForm.append("category", category);
+      listingForm.append("type", type);
+      Object.entries(formLocation).forEach(([key, val]) =>
+        listingForm.append(key, val)
+      );
+      listingForm.append("guestCount", guestCount);
+      listingForm.append("bedroomCount", bedroomCount);
+      listingForm.append("bedCount", bedCount);
+      listingForm.append("bathroomCount", bathroomCount);
+      listingForm.append("amenities", amenities);
+      Object.entries(formDescription).forEach(([key, val]) =>
+        listingForm.append(key, val)
+      );
+      photos.forEach((photo) => {
+        listingForm.append("listingPhotos", photo);
+      });
+
+      const response = await fetch("http://localhost:3001/properties/create", {
+        method: "POST",
+        body: listingForm,
+      });
+
+      if (response.ok) {
+        navigate("/");
+      }
+    } catch (err) {
+      console.error("Publish Listing failed", err.message);
+    }
   };
 
   return (
@@ -35,7 +117,8 @@ const CreateListing = () => {
       <Navbar />
       <div className="create-listing">
         <h1>Publish Your Place</h1>
-        <form>
+        <form onSubmit={handlePost}>
+          {/* Step 1 */}
           <div className="create-listing_step1">
             <h2>Step 1: Tell us about your place</h2>
             <hr />
@@ -170,6 +253,153 @@ const CreateListing = () => {
               ))}
             </div>
           </div>
+
+          {/* Step 2 */}
+          <div className="create-listing_step2">
+            <h2>Step 2: Make your place stand out</h2>
+            <hr />
+            <h3>Tell guests what your place has to offer</h3>
+            <div className="amenities">
+              {facilities.map((item, index) => (
+                <div
+                  className={`facility ${
+                    amenities.includes(item.name) ? "selected" : ""
+                  }`}
+                  key={index}
+                  onClick={() => handleSelectAmenities(item.name)}
+                >
+                  <div className="facility_icon">{item.icon}</div>
+                  <p>{item.name}</p>
+                </div>
+              ))}
+            </div>
+
+            <h3>Add some photos of your place</h3>
+            <DragDropContext onDragEnd={handleDragPhoto}>
+              <Droppable droppableId="photos" direction="horizontal">
+                {(provided) => (
+                  <div
+                    className="photos"
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                  >
+                    {photos.length < 1 && (
+                      <>
+                        <input
+                          id="image"
+                          type="file"
+                          style={{ display: "none" }}
+                          accept="image/*"
+                          onChange={handleUploadPhotos}
+                          multiple
+                        />
+                        <label htmlFor="image" className="alone">
+                          <div className="icon">
+                            <IoIosImages />
+                          </div>
+                          <p>Upload from your device</p>
+                        </label>
+                      </>
+                    )}
+
+                    {photos.length >= 1 && (
+                      <>
+                        {photos.map((photo, index) => (
+                          <Draggable
+                            key={index}
+                            draggableId={index.toString()}
+                            index={index}
+                          >
+                            {(provided) => (
+                              <div
+                                className="photo"
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                              >
+                                <img
+                                  src={URL.createObjectURL(photo)}
+                                  alt="place"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePhoto(index)}
+                                >
+                                  <BiTrash />
+                                </button>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        <input
+                          id="image"
+                          type="file"
+                          style={{ display: "none" }}
+                          accept="image/*"
+                          onChange={handleUploadPhotos}
+                          multiple
+                        />
+                        <label htmlFor="image" className="together">
+                          <div className="icon">
+                            <IoIosImages />
+                          </div>
+                          <p>Upload from your device</p>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+
+            <h3>What makes your place attractive and exciting?</h3>
+            <div className="description">
+              <p>Title</p>
+              <input
+                type="text"
+                name="title"
+                value={formDescription.title}
+                onChange={handleChangeDescription}
+                required
+              />
+              <p>Description</p>
+              <textarea
+                name="description"
+                value={formDescription.description}
+                onChange={handleChangeDescription}
+                required
+              />
+              <p>Highlight</p>
+              <input
+                type="text"
+                name="highlight"
+                value={formDescription.highlight}
+                onChange={handleChangeDescription}
+                required
+              />
+              <p>Highlight details</p>
+              <textarea
+                name="highlightDesc"
+                value={formDescription.highlightDesc}
+                onChange={handleChangeDescription}
+                required
+              />
+              <p>Now, set your PRICE</p>
+              <span>$</span>
+              <input
+                type="number"
+                name="price"
+                value={formDescription.price}
+                onChange={handleChangeDescription}
+                className="price"
+                required
+              />
+            </div>
+          </div>
+
+          <button className="submit_btn" type="submit">
+            CREATE YOUR LISTING
+          </button>
         </form>
       </div>
       <Footer />
