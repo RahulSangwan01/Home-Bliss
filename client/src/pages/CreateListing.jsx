@@ -4,13 +4,13 @@ import { categories, types, facilities } from "../data";
 
 import { RemoveCircleOutline, AddCircleOutline } from "@mui/icons-material";
 import variables from "../styles/variables.scss";
-import { DragDropContext, Draggable, Droppable } from "react-beautiful-dnd";
+import { DragDropContext, Draggable, Droppable} from "@hello-pangea/dnd";
 import { IoIosImages } from "react-icons/io";
 import { useState } from "react";
 import { BiTrash } from "react-icons/bi";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import Footer from "../components/Footer"
+// import Footer from "../components/Footer"
 
 const CreateListing = () => {
   const [category, setCategory] = useState("");
@@ -518,7 +518,7 @@ const CreateListing = () => {
         </form>
       </div>
 
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 };
